@@ -1,96 +1,55 @@
 module Perceptron
 
-import Classifier: predict!, update!, step!, fit!
+import Classifier: predict!, update!, step!
+import Base.zero
 
 export PerceptronParams, AvgPerceptronParams
-export predict!, update!, step!, fit!
-
-function keymax{K}(d::Dict{K,Float64})
-    state = start(d)
-    kmax, vmax = next(d, state)
-    k, v = kmax, vmax
-    while !done(d, state)
-        (k, v), state = next(d, state)
-        if v > vmax
-            kmax = k
-            vmax = v
-        end
-    end
-    kmax
-end
+export predict!, update!, step!
 
 # Perceptron
 type PerceptronParams{F,L}
-    W::Dict{F,Dict{L,Float64}}
-    b::Dict{L,Float64}
-    default::L
+    W::Dict{F,Vector{Float64}}
+    b::Vector{Float64}
+    fwdlookup::Dict{L,Int}
+    revlookup::Dict{Int,L}
 end
 
-function PerceptronParams(featuretype::DataType, labeltype::DataType, default)
-    if labeltype != typeof(default)
-        error("typeof(default) and labeltype must match: got $(typeof(default)), $labeltype")
-    end
-    W = Dict{featuretype,Dict{labeltype,Float64}}()
-    b = Dict{labeltype,Float64}()
-    PerceptronParams(W, b, default)
+function PerceptronParams{L}(labels::Vector{L}, featuretype::DataType)
+    W = (featuretype=>Vector{Float64})[]
+    b = zeros(length(labels))
+    fwdlookup = [l=>i for (i,l) in enumerate(labels)]::Dict{L,Int}
+    revlookup = [i=>l for (l,i) in fwdlookup]::Dict{Int,L}
+    PerceptronParams(W, b, fwdlookup, revlookup)
 end
 
 function predict{F,L}(θ::PerceptronParams{F,L}, x::Vector{F})
-    ŷ = (L=>Float64)[]
+    ŷ = copy(θ.b)
     for i in x
         if haskey(θ.W, i)
-            for (c, wic) in θ.W[i]
-                ŷ[c] = get(ŷ, c, 0) + wic
-            end
+            ŷ += θ.W[i]
         end
     end
-    for c in keys(ŷ)
-        ŷ[c] += θ.b[c]
-    end
-    (length(ŷ) > 0) ? keymax(ŷ) : θ.default
+    indmax(ŷ) 
 end
 
-function update!{F,L}(θ::PerceptronParams{F,L}, x::Vector{F}, y::L, ŷ::L)
-    θ.b[y] = get(θ.b, y, 0.0) + 1.0
-    θ.b[ŷ] = get(θ.b, ŷ, 0.0) - 1.0
+function update!{F,L}(θ::PerceptronParams{F,L}, x::Vector{F}, y::Int, ŷ::Int)
+    θ.b[y] += 1.0
+    θ.b[ŷ] -= 1.0
     for i in x
-        Wi = get!(θ.W, i, (L=>Float64)[])
-        Wi[y] = get(Wi, y, 0.0) + 1.0
-        Wi[ŷ] = get(Wi, ŷ, 0.0) - 1.0
+        Wi = get!(()->zero(θ.b), θ.W, i)
+        Wi[y] += 1.0
+        Wi[ŷ] -= 1.0
     end
 end
 
-function step!{F,L}(θ::PerceptronParams{F,L}, x::Vector{F}, y::L)
+function step!{F,L}(θ::PerceptronParams{F,L}, x::Vector{F}, ylabel::L)
     ŷ = predict(θ, x)
+    y = θ.fwdlookup[ylabel]
     if y != ŷ
         update!(θ, x, y, ŷ)
         return 1.0
     else
         return 0.0
-    end
-end
-
-function fitperceptron!{F,L}(train::Vector{(Vector{F},L)}, 
-                             valid::Vector{(Vector{F},L)},
-                             numit::Int)
-    θ = PerceptronParams(F, L, "*NOLABEL*")
-    errors_train = 0
-    errors_valid = 0
-    for epoch = 1:numit
-        shuffle!(train)
-        errors_train = 0
-        for (x, y) in train
-            errors_train += step!(θ, x, y)
-        end
-        errors_valid = 0
-        for (x, y) in valid
-            if y != predict(θ, x)
-                errors_valid += 1
-            end
-        end
-        println("epoch $epoch")
-        println("error [train]: $(errors_train / length(train))")
-        println("error [valid]: $(errors_valid / length(valid))")
     end
 end
 
@@ -101,114 +60,78 @@ type ParamTriple
     stamp::Float64
 end
 ParamTriple() = ParamTriple(0.0, 0.0, 0.0)
+zero(v::Vector{ParamTriple}) = [ParamTriple() for i = 1:length(v)]
 
 type AvgPerceptronParams{F,L}
-    W::Dict{F,Dict{L,ParamTriple}}
-    b::Dict{L,ParamTriple}
+    W::Dict{F,Vector{ParamTriple}}
+    b::Vector{ParamTriple}
+    fwdlookup::Dict{L,Int}
+    revlookup::Dict{Int,L}
     t::Float64
-    default::L
 end
 
-function AvgPerceptronParams(featuretype::DataType, labeltype::DataType, default)
-    if labeltype != typeof(default)
-        error("typeof(default) and labeltype must match: got $(typeof(default)), $labeltype")
-    end
-    W = Dict{featuretype,Dict{labeltype,ParamTriple}}()
-    b = Dict{labeltype,ParamTriple}()
-    AvgPerceptronParams(W, b, 1.0, default)
+function AvgPerceptronParams{L}(labels::Vector{L}, featuretype::DataType)
+    W = (featuretype=>Vector{ParamTriple})[]
+    b = [ParamTriple() for label in labels]
+    fwdlookup = [l=>i for (i,l) in enumerate(labels)]::Dict{L,Int}
+    revlookup = [i=>l for (l,i) in fwdlookup]::Dict{Int,L}
+    AvgPerceptronParams(W, b, fwdlookup, revlookup, 1.0)
 end
 
 function predict{F,L}(θ::AvgPerceptronParams{F,L}, x::Vector{F})
-    ŷ = (L=>Float64)[]
+    ŷ = zeros(length(θ.b))
     for i in x
-        if haskey(θ.W, i)
-            for (c, wic) in θ.W[i]
-                ŷ[c] = get(ŷ, c, 0.0) + (wic.total + (wic.value * (θ.t - wic.stamp))) / θ.t
-            end
+        Wi = get!(()->zero(θ.b), θ.W, i)
+        for j = 1:length(Wi)
+            ŷ[j] += (Wi[j].total + (Wi[j].value * (θ.t - Wi[j].stamp))) / θ.t
         end
     end
-    for c in keys(ŷ)
-        bc = θ.b[c]
-        ŷ[c] += (bc.total + (bc.value * (θ.t - bc.stamp))) / θ.t
+    for j = 1:length(θ.b)
+        ŷ[j] += (θ.b[j].total + (θ.b[j].value * (θ.t - θ.b[j].stamp))) / θ.t
     end
-    (length(ŷ) > 0) ? keymax(ŷ) : θ.default
+    indmax(ŷ)
 end
 
-function predict_inner{F,L}(θ::AvgPerceptronParams{F,L}, x::Vector{F})
-    ŷ = (L=>Float64)[]
-    ŷavg = (L=>Float64)[]
+function predict_current{F,L}(θ::AvgPerceptronParams{F,L}, x::Vector{F})
+    ŷ = [b.total for b in θ.b]
     for i in x
-        if haskey(θ.W, i)
-            for (c, wic) in θ.W[i]
-                ŷ[c] = get(ŷ, c, 0.0) + wic.value
-                ŷavg[c] = get(ŷavg, c, 0.0) + (wic.total / θ.t)
-            end
+        Wi = get!(()->zero(θ.b), θ.W, i)
+        for j = 1:length(Wi)
+            ŷ[j] += Wi[j].value
         end
     end
-    for c in keys(ŷ)
-        ŷ[c] += θ.b[c].value
-        ŷavg[c] += (θ.b[c].total / θ.t)
-    end
-    ret1 = (length(ŷ) > 0) ? keymax(ŷ) : θ.default
-    ret2 = (length(ŷavg) > 0) ? keymax(ŷavg) : θ.default
-    ret1, ret2
+    indmax(ŷ)
 end
 
-function update!{F,L}(θ::AvgPerceptronParams{F,L}, x::Vector{F}, y::L, ŷ::L)
-    by = get!(()->ParamTriple(), θ.b, y)
-    bŷ = get!(()->ParamTriple(), θ.b, ŷ)
-    by.total = by.value * (θ.t - by.stamp)
-    bŷ.total = bŷ.value * (θ.t - bŷ.stamp)
-    by.stamp = θ.t
-    bŷ.stamp = θ.t
+function update!{F,L}(θ::AvgPerceptronParams{F,L}, x::Vector{F}, y::Int, ŷ::Int)
+    θ.b[y].total += θ.b[y].value * (θ.t - θ.b[y].stamp)
+    θ.b[ŷ].total += θ.b[ŷ].value * (θ.t - θ.b[ŷ].stamp)
+    θ.b[y].stamp = θ.t
+    θ.b[ŷ].stamp = θ.t
     # normal perceptron update
-    by.value += 1.0
-    bŷ.value -= 1.0
+    θ.b[y].value += 1.0
+    θ.b[ŷ].value -= 1.0
     for i in x
-        Wi = get!(θ.W, i, (L=>ParamTriple)[])
-        Wiy = get!(()->ParamTriple(), Wi, y)
-        Wiŷ = get!(()->ParamTriple(), Wi, ŷ)
-        Wiy.total = Wiy.value * (θ.t - Wiy.stamp)
-        Wiŷ.total = Wiŷ.value * (θ.t - Wiŷ.stamp)
-        Wiy.stamp = θ.t
-        Wiŷ.stamp = θ.t
+        Wi = get!(()->zero(θ.b), θ.W, i)
+        Wi[y].total = Wi[y].value * (θ.t - Wi[y].stamp)
+        Wi[ŷ].total = Wi[ŷ].value * (θ.t - Wi[ŷ].stamp)
+        Wi[y].stamp = θ.t
+        Wi[ŷ].stamp = θ.t
         # normal perceptron update
-        Wiy.value += 1.0
-        Wiŷ.value -= 1.0
+        Wi[y].value += 1.0
+        Wi[ŷ].value -= 1.0
     end
 end
 
-function step!{F,L}(θ::AvgPerceptronParams{F,L}, x::Vector{F}, y::L)
-    ŷ, ŷavg = predict_inner(θ, x)
-    if y != ŷ
-        update!(θ, x, y, ŷ)
+function step!{F,L}(θ::AvgPerceptronParams{F,L}, x::Vector{F}, ylabel::L)
+    ŷcurrent = predict_current(θ, x)
+    ŷavg = predict(θ, x)
+    y = θ.fwdlookup[ylabel]
+    if y != ŷcurrent
+        update!(θ, x, y, ŷcurrent)
     end
     θ.t += 1
-    return (y != ŷavg) ? 1.0 : 0.0
-end
-
-function fitavgperceptron!{F,L}(train::Vector{(Vector{F},L)},
-                                valid::Vector{(Vector{F},L)},
-                                numit::Int)
-    θ = AvgPerceptronParams(F, L, "*NOLABEL*")
-    errors_train = 0
-    errors_valid = 0
-    for epoch = 1:numit
-        shuffle!(train)
-        errors_train = 0.0
-        for (x, y) in train
-            errors_train += step!(θ, x, y)
-        end
-        errors_valid = 0.0
-        for (x, y) in valid
-            if y != predict(θ, x)
-                errors_valid += 1.0
-            end
-        end
-        println("epoch $epoch")
-        println("error [train]: $(errors_train / length(train))")
-        println("error [valid]: $(errors_valid / length(valid))")
-    end
+    (y == ŷavg) ? 0.0 : 1.0
 end
 
 end # module

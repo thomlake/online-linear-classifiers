@@ -3,6 +3,15 @@ module Datasets
 export approxsplit
 export dumpsplits, readsplits
 
+function makebow(doc)
+    words = split(doc, " ")
+    s = Set{eltype(words)}()
+    for word in words
+        push!(s, word)
+    end
+    [s...]
+end
+
 function get20news()
     # return an array of (x,y) pairs where 
     # x is a document and
@@ -10,7 +19,9 @@ function get20news()
     lines = split(readall(open("./data/20news.txt")), "\n")
     
     lbls = lines[1:2:end-1]
-    docs = map(split, lines[2:2:end])
+    #docs = map(d->[Set(split(d)...)...], lines[2:2:end])
+    #docs = map(split, lines[2:2:end])
+    docs = map(makebow, lines[2:2:end])
     #lbls = [strip(text[i]) for i = 1:2:length(text)]
     #docs = [split(strip(text[i+1])) for i = 1:2:length(text)]
 

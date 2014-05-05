@@ -1,23 +1,9 @@
 module LogReg
 
-import Classifier: predict!, update!, step!, fit!
+import Classifier: predict!, update!, step!
 
 export LogRegParams
-export predict!, update!, step!, fit!
-
-function keymax{K}(d::Dict{K,Float64})
-    state = start(d)
-    kmax, vmax = next(d, state)
-    k, v = kmax, vmax
-    while !done(d, state)
-        (k, v), state = next(d, state)
-        if v > vmax
-            kmax = k
-            vmax = v
-        end
-    end
-    kmax
-end
+export predict!, update!, step!
 
 function softmax!(x)
     xmax = maximum(x)
@@ -32,14 +18,14 @@ function softmax!(x)
 end
 
 type LogRegParams{F,L}
-    W::Dict{F,Array{Float64,1}}
-    b::Array{Float64,1}
+    W::Dict{F,Vector{Float64}}
+    b::Vector{Float64}
     fwdlookup::Dict{L,Int}
     revlookup::Dict{Int,L}
 end
 
-function LogRegParams{L}(labels::Array{L}, featuretype::DataType)
-    W = (featuretype=>Array{Float64,1})[]
+function LogRegParams{L}(labels::Vector{L}, featuretype::DataType)
+    W = (featuretype=>Vector{Float64})[]
     b = zeros(length(labels))
     fwdlookup = [l=>i for (i,l) in enumerate(labels)]::Dict{L,Int}
     revlookup = [i=>l for (l,i) in fwdlookup]::Dict{Int,L}
