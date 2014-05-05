@@ -14,4 +14,3 @@ See [blog link](http://tllake.blogspot.com/) for a more detailed discussion.
 |author	 | email                                |
 ---------|--------------------------------------|
 | tllake | thom dot l dot lake at gmail dot com
----------|--------------------------------------|
