@@ -1,0 +1,45 @@
+using Datasets, Perceptron, LogReg
+
+function mistakecounts()
+    D = Datasets.get20news()
+    labels = [Set([y for (x,y) in D]...)...]
+    shuffle!(D)
+    θ1 = PerceptronParams(ASCIIString, ASCIIString, "*NOLABEL*")
+    θ2 = AvgPerceptronParams(ASCIIString, ASCIIString, "*NOLABEL*")
+    θ3 = LogRegParams(labels, ASCIIString)
+    θ4 = LogRegParams(labels, ASCIIString)
+    θ5 = LogRegParams(labels, ASCIIString)
+    
+    err1 = 0.0
+    err2 = 0.0
+    err3 = 0.0
+    err4 = 0.0
+    err5 = 0.0
+    total = (Float64,Float64,Float64,Float64,Float64)[] 
+    percent = (Float64,Float64,Float64,Float64,Float64)[]
+    seen = 0
+    step = 100
+    for (x, y) in D
+        err1 += step!(θ1, x, y)
+        err2 += step!(θ2, x, y)
+        err3 += step!(θ3, x, y, 0.001)
+        err4 += step!(θ4, x, y, 0.01)
+        err5 += step!(θ5, x, y, 0.1)
+        seen += 1
+        if rem(seen, step) == 0
+            println("seen: $seen")
+            println("1: $err1, 2: $err2, 3: $err3, 4: $err4, 5: $err5")
+            push!(total, (err1, err2, err3, err4, err5))
+            push!(percent, map(c -> c / seen, (err1, err2, err3, err4, err5)))
+        end
+    end
+
+    ftotal = open("./results/total.csv", "w")
+    fpercent = open("./results/percent.csv", "w")
+    for i = 1:length(total)
+        write(ftotal, "$(i * step), $(join(total[i], ", "))\n")
+        write(fpercent, "$(i * step), $(join(percent[i], ", "))\n")
+    end
+    close(ftotal)
+    close(fpercent)
+end
