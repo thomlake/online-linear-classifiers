@@ -113,8 +113,8 @@ function update!{F,L}(θ::AvgPerceptronParams{F,L}, x::Vector{F}, y::Int, ŷ::In
     θ.b[ŷ].value -= 1.0
     for i in x
         Wi = get!(()->zero(θ.b), θ.W, i)
-        Wi[y].total = Wi[y].value * (θ.t - Wi[y].stamp)
-        Wi[ŷ].total = Wi[ŷ].value * (θ.t - Wi[ŷ].stamp)
+        Wi[y].total += Wi[y].value * (θ.t - Wi[y].stamp)
+        Wi[ŷ].total += Wi[ŷ].value * (θ.t - Wi[ŷ].stamp)
         Wi[y].stamp = θ.t
         Wi[ŷ].stamp = θ.t
         # normal perceptron update

@@ -77,32 +77,4 @@ function step!{F,L}(θ::LogRegParams{F,L}, x::Vector{F}, ylabel::L, η::Float64)
     (y == indmax(ŷ)) ? 0.0 : 1.0
 end
 
-function fitlogreg!{F,L}(train::Vector{(Vector{F},L)}, 
-                         valid::Vector{(Vector{F},L)},
-                         numit::Int)
-    trainlabels = Set([y for (x,y) in train]...)
-    validlabels = Set([y for (x,y) in valid]...)
-    labelset = union(trainlabels, validlabels)
-    labels = [labelset...]
-    θ = LogRegParams(labels, F)
-    errors_train = 0.0
-    errors_valid = 0.0
-    for epoch = 1:numit
-        shuffle!(train)
-        errors_train = 0.0
-        for (x, y) in train
-            errors_train += step!(θ, x, y, 0.01)
-        end
-        errors_valid = 0.0
-        for (x, y) in valid
-            if y != predict(θ, x)
-                errors_valid += 1.0
-            end
-        end
-        println("epoch $epoch")
-        println("error [train]: $(errors_train / length(train))")
-        println("error [valid]: $(errors_valid / length(valid))")
-    end
-end
-
 end

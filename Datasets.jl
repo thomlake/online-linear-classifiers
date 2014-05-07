@@ -19,11 +19,8 @@ function get20news()
     lines = split(readall(open("./data/20news.txt")), "\n")
     
     lbls = lines[1:2:end-1]
-    #docs = map(d->[Set(split(d)...)...], lines[2:2:end])
     #docs = map(split, lines[2:2:end])
     docs = map(makebow, lines[2:2:end])
-    #lbls = [strip(text[i]) for i = 1:2:length(text)]
-    #docs = [split(strip(text[i+1])) for i = 1:2:length(text)]
 
     @assert length(lbls) == length(docs)
 
