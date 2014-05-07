@@ -2,7 +2,6 @@ from sklearn.datasets import fetch_20newsgroups
 from sklearn.feature_extraction.text import CountVectorizer
 
 def dump_sentences():
-    #corpus = fetch_20newsgroups(subset='train', remove=('headers', 'footers', 'quotes'))
     corpus = fetch_20newsgroups(subset='all', remove=('headers', 'footers', 'quotes'))
     docs = corpus.data
     labels = corpus.target

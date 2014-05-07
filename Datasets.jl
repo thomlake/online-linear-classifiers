@@ -27,6 +27,21 @@ function get20news()
     convert(Vector{(Vector{ASCIIString},ASCIIString)},collect(zip(docs, lbls)))
 end
 
+function getreviews()
+    # return an array of (x,y) pairs where 
+    # x is a document and
+    # y is the topic
+    lines = split(readall(open("./data/reviews.txt")), "\n")
+    
+    lbls = lines[1:2:end-1]
+    #docs = map(split, lines[2:2:end])
+    docs = map(makebow, lines[2:2:end])
+
+    @assert length(lbls) == length(docs)
+
+    convert(Vector{(Vector{ASCIIString},ASCIIString)},collect(zip(docs, lbls)))
+end
+
 function approxsplit(things, p)
     # split things into length(p) chunks such that 
     # length(chunks[i]) ≈ length(things) * p[i]

@@ -6,6 +6,8 @@ import Base.zero
 export PassiveAgressiveParams
 export predict!, update!, step!
 
+# given i = indmax(x) return 
+# argmax{x[j] | i != j}
 function indmax2{T}(x::Vector{T}, i::Int)
     maxj, maxval = 0, typemin(T)
     for j = 1:length(x)
@@ -17,8 +19,7 @@ function indmax2{T}(x::Vector{T}, i::Int)
     maxj
 end
 
-
-# Perceptron
+# Passive Agressive 
 type PassiveAgressiveParams{F,L}
     W::Dict{F,Vector{Float64}}
     b::Vector{Float64}
@@ -78,7 +79,11 @@ function update!{F,L}(θ::PassiveAgressiveParams{F,L},
     end
 end
 
-function step!{F,L}(θ::PassiveAgressiveParams{F,L}, x::Vector{F}, ylabel::L, C::Float64, variant::Symbol=:PA2)
+function step!{F,L}(θ::PassiveAgressiveParams{F,L}, 
+                    x::Vector{F}, 
+                    ylabel::L, 
+                    C::Float64, 
+                    variant::Symbol=:PA2)
     ŷout = outputs(θ, x)
     ŷ = indmax(ŷout)
     y = θ.fwdlookup[ylabel]
