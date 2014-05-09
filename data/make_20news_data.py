@@ -13,11 +13,19 @@ def dump_sentences():
     def words(doc):
         p = preprocess(doc)
         return ' '.join(t.encode('ascii', 'replace') for t in tokenize(p))
-        
+    
+    doccount = 0
+    vocab = set()
     with open('20news.txt', 'w') as f:
         for doc, lbl in zip(docs, labels):
+            w = words(doc)
             print >> f, label_names[lbl]
-            print >> f, words(doc)
+            print >> f, w
+            doccount += 1
+            vocab.update(w.split(' '))
+    
+    print 'Number of documents:', doccount
+    print 'Number of unique words:', len(vocab)
 
 if __name__ == '__main__':
     dump_sentences()

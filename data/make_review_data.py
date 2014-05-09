@@ -58,6 +58,7 @@ def dump_reviews():
                 print >> fout, w
                 doccount += 1
                 vocab.update(w.split(' '))
+    
     print 'Number of documents:', doccount
     print 'Number of unique words:', len(vocab)
 
